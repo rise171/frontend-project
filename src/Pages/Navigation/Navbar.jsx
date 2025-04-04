@@ -2,10 +2,7 @@
 import {useNavigate} from "react-router-dom";
 import img from "../../assets/img.png";
 import {Navbar, Nav, Container, Button} from 'react-bootstrap';
-
-import {GoHome} from "react-icons/go";
 import "./Navbar.css";
-import {useState} from "react";
 
 export default function Navigation() {
     //const [roomExist, setRoomExist] = useState(false)
@@ -26,20 +23,10 @@ export default function Navigation() {
 
     const anotherUsers = navigate('/users');
 
-    /*const checkRoom = async (userId) => {
-        try {
-            const response = await api.get("/rooms/{owner_id}");
-            setRoomExist(response.data.exists);
-        }
-        catch (error) {
-            console.error("Ошибка при проверки комнаты");
-        }
-    }*/
-
     return (
         <Navbar expand="lg" style={{backgroundColor: '#eecb9a'}}>
             <Container>
-                <img src={img} alt="" className="navigate-image"/>
+                <img src={img} alt="" className="navigate-image-logo"/>
                 <Nav className="ml-auto">
                     <Nav.Link onClick={handleMain} className="navbar-elements" >
                         <p>Моя комната</p>
