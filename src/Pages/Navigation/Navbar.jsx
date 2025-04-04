@@ -2,7 +2,7 @@
 import {useNavigate} from "react-router-dom";
 import img from "../../assets/img.png";
 import {Navbar, Nav, Container, Button} from 'react-bootstrap';
-import { Navbar, Nav } from 'rsuite';
+
 import {GoHome} from "react-icons/go";
 import "./Navbar.css";
 import {useState} from "react";
