@@ -1,0 +1,11 @@
+.allpage {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+.main-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
