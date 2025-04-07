@@ -8,78 +8,50 @@ import api from "../axios.jsx";
 import { useUser } from "../../UserContext.jsx";
 
 export default function Authorization() {
+    const navigate = useNavigate();
+    const { setUserId } = useUser();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const navigate = useNavigate();
-    const { setUserId } = useUser();
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
         setError("");
 
-        console.log("data: ", {email, password});
-        // Валидация полей перед отправкой
-        if (!email.trim()) {
-            setError("Email обязателен для заполнения");
-            return;
-        }
-
-        if (!password.trim()) {
-            setError("Пароль обязателен для заполнения");
-            return;
-        }
-
-        setIsLoading(true);
         try {
-            // Отправляем данные в формате, который ожидает сервер
             const response = await api.post("/user/login", {
-                email: email,
-                password: password
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                email,
+                password
             });
 
-            // Обработка успешного ответа
-            if (response.data.id) {
-                setUserId(response.data.id);
+            console.log("Full response:", response.data);
+
+            // Получаем данные из ответа
+            const { access_token } = response.data;
+
+            // Проверяем наличие нужных данных
+            if (!access_token || !access_token.user_id) {
+                throw new Error("Неожиданный формат ответа от сервера");
             }
 
-            if (response.data.access) {
-                // Сохраняем токен в headers и localStorage
-                api.defaults.headers.common["Authorization"] = `Bearer ${response.data.access}`;
-                localStorage.setItem('accessToken', response.data.access);
-            }
+            // Сохраняем user_id в контекст
+            setUserId(access_token.user_id);
 
+            // Можно также сохранить сам токен в localStorage
+            localStorage.setItem('authToken', access_token.access_token);
+
+            // Переходим на защищенную страницу
             navigate("/main");
+
         } catch (err) {
-            // Улучшенная обработка ошибок
-            if (err.response) {
-                if (err.response.status === 422) {
-                    // Обработка ошибок валидации
-                    const errorData = err.response.data;
-                    if (errorData.detail) {
-                        if (Array.isArray(errorData.detail)) {
-                            // Если ошибки в формате массива
-                            const errorMessages = errorData.detail.map(e => e.msg);
-                            setError(errorMessages.join('\n'));
-                        } else if (typeof errorData.detail === 'string') {
-                            // Если ошибка в виде строки
-                            setError(errorData.detail);
-                        }
-                    } else {
-                        setError("Ошибка валидации данных");
-                    }
-                } else {
-                    // Другие ошибки сервера
-                    setError(err.response.data?.message || "Неверный email или пароль");
-                }
-            } else {
-                setError("Ошибка соединения с сервером");
-            }
+            console.error("Login error:", err);
+            const message = err.response?.data?.detail ||
+                err.message ||
+                "Ошибка входа. Проверьте данные.";
+            setError(typeof message === "string" ? message : message.join("\n"));
         } finally {
             setIsLoading(false);
         }
@@ -87,9 +59,9 @@ export default function Authorization() {
 
     return (
         <div className="register-block">
-            <img src={image1} alt="" className="side-image"/>
+            <img src={image1} alt="" className="side-image" />
             <form className="roomie-form-registration" onSubmit={handleLogin}>
-                <img src={MyImage} alt="" className="logo-auth"/>
+                <img src={MyImage} alt="" className="logo-auth" />
                 <h2 className="form-title">Вход</h2>
                 <input
                     type="email"
@@ -111,7 +83,7 @@ export default function Authorization() {
                 />
                 {error && (
                     <div className="error-message">
-                        {error.split('\n').map((line, i) => (
+                        {error.split("\n").map((line, i) => (
                             <p key={i}>{line}</p>
                         ))}
                     </div>
@@ -125,10 +97,10 @@ export default function Authorization() {
                     Зарегистрироваться
                 </p>
                 <button type="submit" disabled={isLoading}>
-                    {isLoading ? "Вход..." : "Войти"}
+                    Войти
                 </button>
             </form>
-            <img src={image2} alt="" className="side-image"/>
+            <img src={image2} alt="" className="side-image" />
         </div>
     );
 }
