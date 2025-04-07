@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../axios.jsx";  // Импортируем настроенный axios-клиент
 import "./AuthForm.css";
 import image1 from "../assets/img_1.png";
 import image2 from "../assets/img_2.png";
@@ -8,39 +9,44 @@ import MyImage from "../assets/img.png";
 export default function Authorization() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState(""); // Стейт для ошибки
+    const [error, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setError(""); // Сбрасываем ошибку перед новым запросом
+        setError("");
+        setIsLoading(true);
 
-        // Проверка на пустые значения
         if (!email || !password) {
             setError("Все поля должны быть заполнены");
+            setIsLoading(false);
             return;
         }
 
-        // Проверка, существует ли такой пользователь
-        const existingUsers = JSON.parse(localStorage.getItem("users")) || [];
-        const user = existingUsers.find(user => user.email === email);
+        try {
+            const { data } = await api.post("/user/login/", { email, password });
 
-        if (!user) {
-            setError("Пользователь не найден");
-            return;
+            // Сохраняем токен в axios для автоматической подстановки в заголовки
+            api.defaults.headers.common["Authorization"] = `Bearer ${data.access}`;
+
+            // Перенаправляем на главную
+            navigate("/main");
+        } catch (err) {
+            // Обрабатываем разные типы ошибок
+            if (err.response) {
+                // Ошибка от сервера (4xx, 5xx)
+                setError(err.response.data.detail || "Неверный email или пароль");
+            } else if (err.request) {
+                // Запрос был отправлен, но ответа не получено
+                setError("Сервер не отвечает");
+            } else {
+                // Ошибка при настройке запроса
+                setError("Ошибка при отправке запроса");
+            }
+        } finally {
+            setIsLoading(false);
         }
-
-        // Проверка пароля
-        if (user.password !== password) {
-            setError("Неверный пароль");
-            return;
-        }
-
-        // Очистка полей
-        setEmail('');
-        setPassword('');
-
-        navigate("/");
     };
 
     return (
@@ -55,6 +61,7 @@ export default function Authorization() {
                     className="input-form"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                 />
                 <input
                     type="password"
@@ -62,11 +69,20 @@ export default function Authorization() {
                     className="input-form"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
                 />
-                {error && <p className="error-message">{error}</p>} {/* Отображаем ошибку, если она есть */}
+                {error && <p className="error-message">{error}</p>}
                 <p className="form-text-p">Не зарегистрированы?</p>
-                <p className="transist-to-autorize" onClick={() => navigate("/register")}>Создать аккаунт</p>
-                <button type="submit">Войти</button>
+                <p
+                    className="transist-to-autorize"
+                    onClick={() => !isLoading && navigate("/register")}
+                    style={{ cursor: isLoading ? "not-allowed" : "pointer" }}
+                >
+                    Создать аккаунт
+                </p>
+                <button type="submit" disabled={isLoading}>
+                    {isLoading ? "Вход..." : "Войти"}
+                </button>
             </form>
             <img src={image2} alt="" className="side-image"/>
         </div>
