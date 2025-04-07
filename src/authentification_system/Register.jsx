@@ -42,30 +42,35 @@ export default function Register() {
             <form className="roomie-form-registration" onSubmit={handleRegister}>
                 <img src={MyImage} alt="" className="logo-auth"/>
                 <h2 className="form-title">Регистрация</h2>
-                <input
-                    type="text"
-                    placeholder="Введите имя"
-                    className="input-form"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                />
-                <input
-                    type="email"
-                    placeholder="Введите почту"
-                    className="input-form"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                    type="password"
-                    placeholder="Введите пароль"
-                    className="input-form"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="input-section">
+                    <input
+                        type="text"
+                        placeholder="Введите имя"
+                        className="input-form"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                    />
+                    <input
+                        type="email"
+                        placeholder="Введите почту"
+                        className="input-form"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <input
+                        type="password"
+                        placeholder="Введите пароль"
+                        className="input-form"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                </div>
                 {error && <p className="error-message">{error}</p>} {/* Отображаем ошибку, если она есть */}
-                <p className="form-text-p">Уже зарегистрировались?</p>
-                <p className="transist-to-autorize" onClick={() => navigate("/login")}>Войти в аккаунт</p>
+                <div className="p-section">
+                    <p className="form-text-p">Уже зарегистрировались?</p>
+                    <p className="transist-to-autorize" onClick={() => navigate("/login")}>Войти в аккаунт</p>
+                </div>
+
                 <button type="submit">Продолжить</button>
             </form>
             <img src={image2} alt="" className="side-image"/>

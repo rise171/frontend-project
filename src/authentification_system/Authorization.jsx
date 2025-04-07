@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../axios.jsx";  // Импортируем настроенный axios-клиент
 import "./AuthForm.css";
 import image1 from "../assets/img_1.png";
 import image2 from "../assets/img_2.png";
 import MyImage from "../assets/img.png";
+import api from "../axios.jsx";
+import { useUser } from "../../UserContext.jsx";
 
 export default function Authorization() {
     const [email, setEmail] = useState("");
@@ -12,37 +13,72 @@ export default function Authorization() {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const { setUserId } = useUser();
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setError("");
-        setIsLoading(true);
 
-        if (!email || !password) {
-            setError("Все поля должны быть заполнены");
-            setIsLoading(false);
+        console.log("data: ", {email, password});
+        // Валидация полей перед отправкой
+        if (!email.trim()) {
+            setError("Email обязателен для заполнения");
             return;
         }
 
+        if (!password.trim()) {
+            setError("Пароль обязателен для заполнения");
+            return;
+        }
+
+        setIsLoading(true);
         try {
-            const { data } = await api.post("/user/login/", { email, password });
+            // Отправляем данные в формате, который ожидает сервер
+            const response = await api.post("/user/login", {
+                email: email,
+                password: password
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // Сохраняем токен в axios для автоматической подстановки в заголовки
-            api.defaults.headers.common["Authorization"] = `Bearer ${data.access}`;
+            // Обработка успешного ответа
+            if (response.data.id) {
+                setUserId(response.data.id);
+            }
 
-            // Перенаправляем на главную
+            if (response.data.access) {
+                // Сохраняем токен в headers и localStorage
+                api.defaults.headers.common["Authorization"] = `Bearer ${response.data.access}`;
+                localStorage.setItem('accessToken', response.data.access);
+            }
+
             navigate("/main");
         } catch (err) {
-            // Обрабатываем разные типы ошибок
+            // Улучшенная обработка ошибок
             if (err.response) {
-                // Ошибка от сервера (4xx, 5xx)
-                setError(err.response.data.detail || "Неверный email или пароль");
-            } else if (err.request) {
-                // Запрос был отправлен, но ответа не получено
-                setError("Сервер не отвечает");
+                if (err.response.status === 422) {
+                    // Обработка ошибок валидации
+                    const errorData = err.response.data;
+                    if (errorData.detail) {
+                        if (Array.isArray(errorData.detail)) {
+                            // Если ошибки в формате массива
+                            const errorMessages = errorData.detail.map(e => e.msg);
+                            setError(errorMessages.join('\n'));
+                        } else if (typeof errorData.detail === 'string') {
+                            // Если ошибка в виде строки
+                            setError(errorData.detail);
+                        }
+                    } else {
+                        setError("Ошибка валидации данных");
+                    }
+                } else {
+                    // Другие ошибки сервера
+                    setError(err.response.data?.message || "Неверный email или пароль");
+                }
             } else {
-                // Ошибка при настройке запроса
-                setError("Ошибка при отправке запроса");
+                setError("Ошибка соединения с сервером");
             }
         } finally {
             setIsLoading(false);
@@ -54,7 +90,7 @@ export default function Authorization() {
             <img src={image1} alt="" className="side-image"/>
             <form className="roomie-form-registration" onSubmit={handleLogin}>
                 <img src={MyImage} alt="" className="logo-auth"/>
-                <h2 className="form-title">Авторизация</h2>
+                <h2 className="form-title">Вход</h2>
                 <input
                     type="email"
                     placeholder="Введите почту"
@@ -62,6 +98,7 @@ export default function Authorization() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
+                    required
                 />
                 <input
                     type="password"
@@ -70,15 +107,22 @@ export default function Authorization() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
+                    required
                 />
-                {error && <p className="error-message">{error}</p>}
-                <p className="form-text-p">Не зарегистрированы?</p>
+                {error && (
+                    <div className="error-message">
+                        {error.split('\n').map((line, i) => (
+                            <p key={i}>{line}</p>
+                        ))}
+                    </div>
+                )}
+                <p className="form-text-p">Ещё нет аккаунта?</p>
                 <p
                     className="transist-to-autorize"
                     onClick={() => !isLoading && navigate("/register")}
                     style={{ cursor: isLoading ? "not-allowed" : "pointer" }}
                 >
-                    Создать аккаунт
+                    Зарегистрироваться
                 </p>
                 <button type="submit" disabled={isLoading}>
                     {isLoading ? "Вход..." : "Войти"}
