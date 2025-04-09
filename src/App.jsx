@@ -6,6 +6,8 @@ import Authorization from "./authentification_system/Authorization.jsx";
 import Register from "./authentification_system/Register.jsx";
 import MainPage from "./Pages/MainPage.jsx";
 import {UserProvider} from "../UserContext.jsx";
+import AnotherUserPage from "./Pages/AnotherUserPage.jsx";
+//import AIChat from "./Pages/AIChat.jsx"; <Route path="/aichat" element={<AIChat/>}/>
 function App() {
 
   return (
@@ -15,6 +17,7 @@ function App() {
                   <Route path="/main" element={<MainPage />}/>
                   <Route path="/login" element={<Authorization />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/users" element={<AnotherUserPage/>}/>
               </Routes>
           </Router>
       </UserProvider>

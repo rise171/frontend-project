@@ -40,3 +40,19 @@
     width: 5%;
     height: 100px;
 }
+
+.icon-add-interest {
+    z-index: 10;
+    width: 5%;
+    height: 7%;
+    background-color: #eecb9a;
+    position: fixed;
+    bottom: 50px;
+    left: 20px;
+}
+
+.icon-plus {
+    color: white;
+    width: 90%;
+    height: 90%;
+}

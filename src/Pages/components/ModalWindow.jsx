@@ -8,11 +8,12 @@ import {
     Input,
     Notification,
     Panel,
-    SelectPicker, useToaster
+    SelectPicker,
+    useToaster
 } from "rsuite";
 import api from "./../../axios.jsx";
 import PropTypes from "prop-types";
-import Room from "./Room.jsx";
+import "./ModalWindow.css";
 
 const categoryEndpoints = {
     music: 'songs',
@@ -33,7 +34,7 @@ const fieldMappings = {
 };
 
 const enumValues = {
-    cinema_type: { "Фильм": "Фильм", "Сериал": "Сериал", "Аниме": "Аниме", "Мультипликация": "Мультипликация" },
+    cinema_type: { "фильм": "фильм", "сериал": "сериал", "аниме": "аниме", "мультипликация": "мультипликация" },
     game_type: { "Компьютерная": "Компьютерная", "Настольная": "Настольная", "Мобильная": "Мобильная" },
     book_type: { "Книга": "Книга", "Цикл": "Цикл", "Новелла": "Новелла", "Комикс": "Комикс" }
 };
@@ -44,10 +45,11 @@ const enumTypesMap = {
     literature: 'book_type'
 };
 
-export default function ModalWindow({ show, onClose, interestId }) {
-    const [showRoom, setShowRoom] = useState(false);
+export default function ModalWindow({ show, onClose, onSave, interestId }) {
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [formData, setFormData] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [successfulRequests, setSuccessfulRequests] = useState([]);
 
     const toaster = useToaster();
 
@@ -93,14 +95,21 @@ export default function ModalWindow({ show, onClose, interestId }) {
                 requestData[backendField] = value;
             });
 
-            await api.post(endpoint, requestData);
+            const response = await api.post(endpoint, requestData);
 
-            toaster.push(
-                <Notification type="success" header="Успех" closable>
-                    {categoryDisplayNames[category]} успешно добавлен!
-                </Notification>,
-                { placement: "topCenter" }
-            );
+            if (response.status === 200) {
+                toaster.push(
+                    <Notification type="success" header="Успех" closable>
+                        {categoryDisplayNames[category]} успешно добавлен!
+                    </Notification>,
+                    { placement: "topCenter" }
+                );
+
+                // Добавляем категорию в список успешных запросов
+                if (!successfulRequests.includes(category)) {
+                    setSuccessfulRequests(prev => [...prev, category]);
+                }
+            }
 
             setFormData({});
         } catch (err) {
@@ -114,50 +123,32 @@ export default function ModalWindow({ show, onClose, interestId }) {
     };
 
     const handleSubmit = async () => {
-        if (selectedCategories.length === 0) {
-            toaster.push(
-                <Notification type="error" header="Ошибка" closable>
-                    Выберите хотя бы одну категорию
-                </Notification>,
-                { placement: "topCenter" }
-            );
-            return;
-        }
+        setIsSubmitting(true);
 
-        let successCount = 0;
-
-        for (const category of selectedCategories) {
-            try {
-                const endpoint = `/interest/${categoryEndpoints[category]}`;
-                const requestData = { interest_id: interestId };
-
-                Object.entries(fieldMappings[category]).forEach(([backendField, frontendField]) => {
-                    if (frontendField !== "interest_id") {
-                        requestData[backendField] = formData[frontendField] || "";
-                    }
-                });
-
-                await api.post(endpoint, requestData);
-                successCount++;
-            } catch (err) {
-                toaster.push(
-                    <Notification type="error" header="Ошибка" closable>
-                        {err?.response?.data?.detail || `Ошибка при сохранении ${categoryDisplayNames[category]}`}
-                    </Notification>,
-                    { placement: "topCenter" }
-                );
+        try {
+            // Вызываем функцию сохранения из родительского компонента
+            if (onSave) {
+                await onSave();
             }
-        }
 
-        if (successCount) {
             toaster.push(
                 <Notification type="success" header="Успех" closable>
-                    Сохранено {successCount} из {selectedCategories.length} интересов
+                    Ваши интересы успешно сохранены!
                 </Notification>,
                 { placement: "topCenter" }
             );
-            setShowRoom(true);
+
             onClose();
+        } catch (error) {
+            console.error("Ошибка при сохранении:", error);
+            toaster.push(
+                <Notification type="error" header="Ошибка" closable>
+                    {error?.response?.data?.detail || "Произошла ошибка при сохранении"}
+                </Notification>,
+                { placement: "topCenter" }
+            );
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -200,20 +191,23 @@ export default function ModalWindow({ show, onClose, interestId }) {
             });
     };
 
-    if (showRoom) return <Room interesedId={interestId}/>
+    const isSaveEnabled = successfulRequests.length > 0;
 
     return (
         <Modal open={show} onClose={onClose} size="md" backdrop="static">
             <Modal.Header>
-                <Modal.Title>Ваши интересы</Modal.Title>
+                <Modal.Title className="modal-window-font">Ваши интересы</Modal.Title>
             </Modal.Header>
             <Modal.Body style={{ maxHeight: '65vh', overflowY: 'auto' }}>
                 <Form fluid>
                     <Form.Group>
-                        <Form.ControlLabel>Выберите категории</Form.ControlLabel>
-                        <CheckboxGroup value={selectedCategories} onChange={setSelectedCategories}>
+                        <Form.ControlLabel className="modal-window-font">Выберите категории</Form.ControlLabel>
+                        <CheckboxGroup
+                            value={selectedCategories}
+                            onChange={setSelectedCategories}
+                        >
                             {Object.keys(categoryDisplayNames).map(category => (
-                                <Checkbox key={category} value={category}>
+                                <Checkbox key={category} value={category} className="modal-window-font">
                                     {categoryDisplayNames[category]}
                                 </Checkbox>
                             ))}
@@ -221,20 +215,43 @@ export default function ModalWindow({ show, onClose, interestId }) {
                     </Form.Group>
 
                     {selectedCategories.map(category => (
-                        <Panel key={category} header={categoryDisplayNames[category]} bordered style={{ marginBottom: 15 }}>
+                        <Panel
+                            key={category}
+                            header={categoryDisplayNames[category]}
+                            bordered
+                            style={{ marginBottom: 15 }}
+                            className="modal-window-font"
+                        >
                             {renderCategoryFields(category)}
-                            <Button appearance="primary" onClick={() => handleAddCategory(category) } style={{ marginTop: 10 }}>
+                            <Button
+                                appearance="primary"
+                                onClick={() => handleAddCategory(category)}
+                                style={{ marginTop: 10 }} color="orange"
+                            >
                                 Добавить
                             </Button>
+                            {successfulRequests.includes(category) && (
+                                <span style={{ color: 'green', marginLeft: 10 }}>
+                                    ✓ Успешно добавлено
+                                </span>
+                            )}
                         </Panel>
                     ))}
                 </Form>
             </Modal.Body>
             <Modal.Footer>
-                <Button appearance="primary" onClick={() => handleSubmit()}>
+                <Button
+                    appearance="primary"
+                    onClick={handleSubmit}
+                    loading={isSubmitting}
+                    disabled={!isSaveEnabled || isSubmitting}
+                    color="orange"
+                >
                     Сохранить
                 </Button>
-                <Button onClick={onClose}>Отмена</Button>
+                <Button onClick={onClose} disabled={isSubmitting}>
+                    Отмена
+                </Button>
             </Modal.Footer>
         </Modal>
     );
@@ -243,5 +260,6 @@ export default function ModalWindow({ show, onClose, interestId }) {
 ModalWindow.propTypes = {
     show: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
+    onSave: PropTypes.func.isRequired,
     interestId: PropTypes.number.isRequired
 };

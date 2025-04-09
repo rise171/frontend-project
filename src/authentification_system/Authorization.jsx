@@ -6,6 +6,7 @@ import image2 from "../assets/img_2.png";
 import MyImage from "../assets/img.png";
 import api from "../axios.jsx";
 import { useUser } from "../../UserContext.jsx";
+import {Button} from "rsuite";
 
 export default function Authorization() {
     const navigate = useNavigate();
@@ -63,24 +64,16 @@ export default function Authorization() {
             <form className="roomie-form-registration" onSubmit={handleLogin}>
                 <img src={MyImage} alt="" className="logo-auth" />
                 <h2 className="form-title">Вход</h2>
-                <input
-                    type="email"
-                    placeholder="Введите почту"
-                    className="input-form"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="Введите пароль"
-                    className="input-form"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                    required
-                />
+                <div>
+                    <input type="email" placeholder="Введите почту" className="input-form"
+                           value={email} onChange={(e) => setEmail(e.target.value)}
+                           disabled={isLoading} required
+                    />
+                    <input type="password" placeholder="Введите пароль" className="input-form"
+                           value={password} onChange={(e) => setPassword(e.target.value)}
+                           disabled={isLoading} required/>
+                </div>
+
                 {error && (
                     <div className="error-message">
                         {error.split("\n").map((line, i) => (
@@ -88,19 +81,19 @@ export default function Authorization() {
                         ))}
                     </div>
                 )}
-                <p className="form-text-p">Ещё нет аккаунта?</p>
-                <p
-                    className="transist-to-autorize"
-                    onClick={() => !isLoading && navigate("/register")}
-                    style={{ cursor: isLoading ? "not-allowed" : "pointer" }}
-                >
-                    Зарегистрироваться
-                </p>
-                <button type="submit" disabled={isLoading}>
+                <div>
+                    <p className="form-text-p">Ещё нет аккаунта?</p>
+                    <p className="transist-to-autorize"
+                       onClick={() => !isLoading && navigate("/register")}
+                       style={{cursor: isLoading ? "not-allowed" : "pointer"}}>
+                        Зарегистрироваться
+                    </p>
+                </div>
+                <Button type="submit" disabled={isLoading}>
                     Войти
-                </button>
+                </Button>
             </form>
-            <img src={image2} alt="" className="side-image" />
+            <img src={image2} alt="" className="side-image"/>
         </div>
     );
 }
