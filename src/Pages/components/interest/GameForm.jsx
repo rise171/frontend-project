@@ -1,55 +1,186 @@
-import { useEffect, useState } from "react";
-import { ListGroup, Spinner, Alert, Modal, Button } from "react-bootstrap";
+import React, { useEffect, useState } from "react";
+import { List, Loader, Modal, Button, Message, useToaster, IconButton, Input, InputGroup } from "rsuite";
 import api from "../../../axios.jsx";
 import PropTypes from "prop-types";
+import { FaRegTrashAlt, FaEdit } from "react-icons/fa";
 
 const GamesInterests = ({ show, onHide, interestId }) => {
     const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState({
+        name: '',
+        game_type: ''
+    });
+    const toaster = useToaster();
+
+    const fetchGames = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get(`/interest/games/${interestId}`);
+            setGames(response.data);
+            setError(null);
+        } catch (err) {
+            setError("Ошибка загрузки игровых интересов");
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchGames = async () => {
-            try {
-                const response = await api.get(`/interest/game/${interestId}`);
-                setGames(response.data);
-            } catch (err) {
-                setError("Ошибка загрузки игровых интересов");
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
+        if (show && interestId) {
+            fetchGames();
+        }
+    }, [show, interestId]);
 
-        fetchGames();
-    }, [interestId]);
+    const deleteGame = async (game_id) => {
+        try {
+            await api.delete(`/interest/games/${game_id}`);
+            toaster.push(
+                <Message showIcon type="success">
+                    Игра успешно удалена
+                </Message>
+            );
+            setGames(games.filter(game => game.id !== game_id));
+        } catch (error) {
+            console.error(error);
+            toaster.push(
+                <Message showIcon type="error">
+                    Ошибка при удалении игры
+                </Message>
+            );
+        }
+    };
 
-    if (loading) return <Spinner animation="border" />;
-    if (error) return <Alert variant="danger">{error}</Alert>;
-    if (!games.length) return <Alert variant="info">Нет любимых игр</Alert>;
+    const startEditing = (game) => {
+        setEditingId(game.id);
+        setEditForm({
+            name: game.name,
+            game_type: game.game_type || game.type // Поддержка обоих вариантов названия поля
+        });
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
+        setEditForm({
+            name: '',
+            game_type: ''
+        });
+    };
+
+    const handleEditChange = (value, field) => {
+        setEditForm(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const updateGame = async (game_id) => {
+        try {
+            // Отправляем данные на сервер
+            const response = await api.put(`/interest/games/${game_id}`, editForm);
+
+            toaster.push(
+                <Message showIcon type="success">
+                    Игра успешно обновлена
+                </Message>
+            );
+
+            // Обновляем локальное состояние
+            setGames(games.map(game =>
+                game.id === game_id ? {
+                    ...game,
+                    name: editForm.name,
+                    type: editForm.game_type,
+                    game_type: editForm.game_type // Для совместимости
+                } : game
+            ));
+
+            cancelEditing();
+        } catch (error) {
+            console.error(error);
+            toaster.push(
+                <Message showIcon type="error">
+                    Ошибка при обновлении игры
+                </Message>
+            );
+        }
+    };
+
+    if (!games.length) return <Message showIcon type="info">Нет добавленных игр</Message>;
 
     return (
-        <Modal show={show} onHide={onHide}>
-            <Modal.Header closeButton>
-                <Modal.Title>Мои игры</Modal.Title>
+        <Modal open={show} onClose={onHide} size="md">
+            <Modal.Header>
+                <Modal.Title className="font-text">Мои игры</Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 {loading ? (
-                    <Spinner animation="border" />
+                    <Loader center content="Загрузка..." />
                 ) : error ? (
-                    <Alert variant="danger">{error}</Alert>
-                ) : games.length ? (
-                    <ListGroup>
-                        {games.map((game) => (
-                            <ListGroup.Item key={game.id}>{game.name} - {game.genre}</ListGroup.Item>
-                        ))}
-                    </ListGroup>
+                    <Message showIcon type="error">{error}</Message>
                 ) : (
-                    <Alert variant="info">Нет добавленных игр</Alert>
+                    <List bordered>
+                        {games.map((game) => (
+                            <List.Item key={game.id}>
+                                {editingId === game.id ? (
+                                    <div style={{ padding: '10px' }}>
+                                        <InputGroup>
+                                            <Input
+                                                value={editForm.name}
+                                                onChange={(value) => handleEditChange(value, 'name')}
+                                                placeholder="Название игры"
+                                            />
+                                        </InputGroup>
+                                        <InputGroup style={{ marginTop: '10px' }}>
+                                            <Input
+                                                value={editForm.game_type}
+                                                onChange={(value) => handleEditChange(value, 'game_type')}
+                                                placeholder="Тип игры (настольная/компьютерная/мобильная)"
+                                            />
+                                        </InputGroup>
+                                        <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                                            <Button appearance="primary" onClick={() => updateGame(game.id)} className="font-text" color="orange">
+                                                Сохранить
+                                            </Button>
+                                            <Button appearance="subtle" onClick={cancelEditing} className="font-text">
+                                                Отмена
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <h5 className="font-text">Название: {game.name}</h5>
+                                            <p className="font-text">Тип: {game.game_type || game.type}</p>
+                                        </div>
+                                        <div>
+                                            <IconButton
+                                                circle
+                                                icon={<FaEdit />}
+                                                appearance="subtle"
+                                                onClick={() => startEditing(game)}
+                                                style={{ marginRight: '10px' }}
+                                            />
+                                            <IconButton
+                                                circle
+                                                icon={<FaRegTrashAlt />}
+                                                color="red"
+                                                appearance="subtle"
+                                                onClick={() => deleteGame(game.id)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </List.Item>
+                        ))}
+                    </List>
                 )}
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={onHide}>
+                <Button appearance="primary" onClick={onHide} className="font-text" color="orange">
                     Закрыть
                 </Button>
             </Modal.Footer>
@@ -61,6 +192,6 @@ GamesInterests.propTypes = {
     interestId: PropTypes.number.isRequired,
     show: PropTypes.bool.isRequired,
     onHide: PropTypes.func.isRequired,
-}
+};
 
 export default GamesInterests;

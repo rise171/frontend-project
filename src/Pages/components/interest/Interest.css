@@ -5,3 +5,9 @@
 .modal-intrest {
     z-index: 10;
 }
+
+.font-text {
+    font-style: normal;
+    font-family: "Playfair Display", serif;
+    font-optical-sizing: auto;
+}

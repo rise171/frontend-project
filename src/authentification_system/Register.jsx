@@ -6,6 +6,8 @@ import image2 from "../assets/img_2.png";
 import MyImage from "../assets/img.png";
 import api from "../axios.jsx";
 import {useUser} from "../../UserContext.jsx";
+import {Message, useToaster} from "rsuite";
+import {Alert} from "react-bootstrap";
 
 export default function Register() {
     const [username, setUsername] = useState("");
@@ -15,11 +17,15 @@ export default function Register() {
     const navigate = useNavigate();
     const { setUserId } = useUser();
 
+    const toaster = useToaster();
+
     const handleRegister = async (e) => {
         e.preventDefault();
         setError("");
         if (!username || !email || !password) {
+            toaster.push(<Message type="warning" style={{zIndex: "1000"}}>Все поля должны быть заполнены</Message>);
             setError("Все поля должны быть заполнены");
+            console.log(error);
             return;
         }
         try {
@@ -65,7 +71,7 @@ export default function Register() {
                         onChange={(e) => setPassword(e.target.value)}
                     />
                 </div>
-                {error && <p className="error-message">{error}</p>} {/* Отображаем ошибку, если она есть */}
+
                 <div className="p-section">
                     <p className="form-text-p">Уже зарегистрировались?</p>
                     <p className="transist-to-autorize" onClick={() => navigate("/login")}>Войти в аккаунт</p>

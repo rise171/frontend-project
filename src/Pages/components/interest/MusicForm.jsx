@@ -1,20 +1,36 @@
-import { useEffect, useState } from "react";
-import { ListGroup, Spinner, Alert, Button, Modal } from "react-bootstrap";
+import React, { useEffect, useState } from "react";
+import {
+    List,
+    Loader,
+    Modal,
+    Button,
+    Message,
+    useToaster,
+    IconButton,
+    Input,
+    InputGroup
+} from "rsuite";
 import api from "../../../axios.jsx";
 import PropTypes from "prop-types";
-import {Notification} from "rsuite";
 import "./Interest.css";
+import { FaRegTrashAlt, FaEdit } from "react-icons/fa";
 
 const MusicInterests = ({ show, onHide, interestId }) => {
     const [songs, setSongs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState({ name: '', author: '' });
+
+    const toaster = useToaster();
 
     useEffect(() => {
         const fetchSongs = async () => {
             try {
-                const response = await api.get('/interest/songs/${interestId}');
+                setLoading(true);
+                const response = await api.get(`/interest/songs/${interestId}`);
                 setSongs(response.data);
+                setError(null);
             } catch (err) {
                 setError("Ошибка загрузки музыкальных интересов");
                 console.error(err);
@@ -23,37 +39,123 @@ const MusicInterests = ({ show, onHide, interestId }) => {
             }
         };
 
-        fetchSongs();
-    }, [interestId]);
+        if (show && interestId) {
+            fetchSongs();
+        }
+    }, [show, interestId]);
 
-    if (loading) return <Spinner animation="border" />;
-    if (error) return <Notification type="danger" className="alert-style">{error}</Notification>;
-    if (!songs.length) return <Alert variant="info">Нет любимых песен</Alert>;
+    const deleteMusic = async (song_id) => {
+        try {
+            await api.delete(`/interest/songs/${song_id}`);
+            toaster.push(
+                <Message showIcon type="success">Песня успешно удалена</Message>
+            );
+            setSongs(songs.filter(song => song.id !== song_id));
+        } catch (error) {
+            console.error(error);
+            toaster.push(
+                <Message showIcon type="error">Ошибка при удалении песни</Message>
+            );
+        }
+    };
+
+    const startEditing = (song) => {
+        setEditingId(song.id);
+        setEditForm({ name: song.name, author: song.author });
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
+        setEditForm({ name: '', author: '' });
+    };
+
+    const handleEditChange = (value, field) => {
+        setEditForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const updateSong = async (song_id) => {
+        try {
+            await api.put(`/interest/songs/${song_id}`, editForm);
+            toaster.push(
+                <Message showIcon type="success">Песня успешно обновлена</Message>
+            );
+            setSongs(songs.map(song =>
+                song.id === song_id ? { ...song, ...editForm } : song
+            ));
+            cancelEditing();
+        } catch (error) {
+            console.error(error);
+            toaster.push(
+                <Message showIcon type="error">Ошибка при обновлении песни</Message>
+            );
+        }
+    };
+
+    if (loading) return <Loader center size="lg" />;
+    if (error) return <Message showIcon type="error">{error}</Message>;
+    if (!songs.length) return <Message showIcon type="info">Нет любимых песен</Message>;
 
     return (
-        <Modal show={show} onHide={onHide}>
-            <Modal.Header closeButton>
-                <Modal.Title>Моя музыка</Modal.Title>
+        <Modal open={show} onClose={onHide} size="md">
+            <Modal.Header>
+                <Modal.Title className="font-text">Моя музыка</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                {loading ? (
-                    <Spinner animation="border" />
-                ) : error ? (
-                    <Alert variant="danger">{error}</Alert>
-                ) : songs.length ? (
-                    <ListGroup>
-                        {songs.map((song) => (
-                            <ListGroup.Item key={song.id}>
-                                {song.name} - {song.author} ({song.genre})
-                            </ListGroup.Item>
-                        ))}
-                    </ListGroup>
-                ) : (
-                    <Alert variant="info">Нет добавленных песен</Alert>
-                )}
+                <List bordered>
+                    {songs.map((song) => (
+                        <List.Item key={song.id}>
+                            {editingId === song.id ? (
+                                <div style={{ padding: '10px' }}>
+                                    <InputGroup style={{ marginBottom: '10px' }} className="font-text">
+                                        <Input
+                                            value={editForm.name}
+                                            onChange={(val) => handleEditChange(val, 'name')}
+                                            placeholder="Название песни"
+                                        />
+                                    </InputGroup>
+                                    <InputGroup style={{ marginBottom: '10px' }} className="font-text">
+                                        <Input
+                                            value={editForm.author}
+                                            onChange={(val) => handleEditChange(val, 'author')}
+                                            placeholder="Исполнитель"
+                                        />
+                                    </InputGroup>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <Button appearance="primary" onClick={() => updateSong(song.id)}
+                                                className="font-text" color="orange">Сохранить</Button>
+                                        <Button appearance="subtle" onClick={cancelEditing} className="font-text">Отмена</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <h4 className="font-text">Название: {song.name}</h4>
+                                        <p className="font-text">Исполнитель: {song.author}</p>
+                                    </div>
+                                    <div>
+                                        <IconButton
+                                            circle
+                                            icon={<FaEdit />}
+                                            appearance="subtle"
+                                            onClick={() => startEditing(song)}
+                                            style={{ marginRight: '10px' }}
+                                        />
+                                        <IconButton
+                                            circle
+                                            icon={<FaRegTrashAlt />}
+                                            color="red"
+                                            appearance="subtle"
+                                            onClick={() => deleteMusic(song.id)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </List.Item>
+                    ))}
+                </List>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={onHide}>
+                <Button appearance="primary" onClick={onHide} className="font-text" color="orange">
                     Закрыть
                 </Button>
             </Modal.Footer>
@@ -65,6 +167,6 @@ MusicInterests.propTypes = {
     interestId: PropTypes.number.isRequired,
     show: PropTypes.bool.isRequired,
     onHide: PropTypes.func.isRequired
-}
+};
 
 export default MusicInterests;
