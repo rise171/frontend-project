@@ -1,69 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ModalWindow from "./ModalWindow.jsx";
 import { useUser } from "../../../UserContext.jsx";
 import api from "../../axios.jsx";
-import { toaster, Message } from "rsuite";
-import Room from "./Room.jsx";
+import {useToaster, Message, Button} from "rsuite";
+import PropTypes from "prop-types";
+import "./VoidPage.css";
 
-export default function VoidPage() {
+export default function VoidPage({ onRoomCreated }) {
     const [openModal, setOpenModal] = useState(false);
     const [interestId, setInterestId] = useState(null);
-    const [showRoom, setShowRoom] = useState(false);
-    const [isChecking, setIsChecking] = useState(false);
-    const {userId} = useUser();
+    const { userId } = useUser();
 
-    // Проверяем наличие интересов при загрузке
-    useEffect(() => {
-        const checkInterests = async () => {
-            if (!userId || isChecking) return;
-
-            setIsChecking(true);
-
-            try {
-                // 1. Получаем основной интерес пользователя
-                const interestResponse = await api.get(`/interest/${userId}`);
-                if (!interestResponse.data) {
-                    setIsChecking(false);
-                    return;
-                }
-
-                const currentInterestId = interestResponse.data.id;
-                setInterestId(currentInterestId);
-
-                // 2. Последовательно проверяем таблицы интересов
-                const endpoints = [
-                    `/interest/songs/${currentInterestId}`,
-                    `/interest/cinema/${currentInterestId}`,
-                    `/interest/games/${currentInterestId}`,
-                    `/interest/sports/${currentInterestId}`,
-                    `/interest/literature/${currentInterestId}`,
-                    `/interest/hobby/${currentInterestId}`,
-                    `/interest/persons/${currentInterestId}`,
-                    `/interest/genres/${currentInterestId}`
-                ];
-
-                for (const endpoint of endpoints) {
-                    try {
-                        const response = await api.get(endpoint);
-                        if (response.data?.length > 0) {
-                            setShowRoom(true);
-                            break; // Прерываем цикл при нахождении первого интереса
-                        }
-                    } catch (error) {
-                        console.error(`Ошибка при проверке ${endpoint}`, error);
-                        // Продолжаем проверку других таблиц при ошибке
-                        continue;
-                    }
-                }
-            } catch (error) {
-                console.error("Ошибка при проверке интересов", error);
-            } finally {
-                setIsChecking(false);
-            }
-        };
-
-        checkInterests();
-    }, [userId]);
+    const toaster = useToaster();
 
     const handleOpenModal = async () => {
         try {
@@ -73,32 +21,46 @@ export default function VoidPage() {
             setInterestId(createInterestId);
             setOpenModal(true);
         } catch (error) {
-            console.error("Ошибка при создании комнаты или интересов", error);
-            toaster.push(<Message type="error">Ошибка создания комнаты или интересов</Message>);
+            console.error("Ошибка при создании комнаты", error);
+            toaster.push(<Message type="error">Ошибка создания комнаты</Message>);
         }
     };
 
-    if (isChecking) {
-        return <div>Проверяем ваши интересы...</div>;
-    }
-
-    if (showRoom) {
-        return <Room interestId={interestId} />;
-    }
+    const handleSave = async () => {
+        try {
+            // После сохранения проверяем, создалась ли комната
+            const response = await api.get(`/interest/${userId}`);
+            if (response.data?.id) {
+                onRoomCreated(response.data.id);
+                setOpenModal(false);
+            } else {
+                toaster.push(<Message type="error">Не удалось создать комнату</Message>);
+            }
+        } catch (error) {
+            console.error("Ошибка при сохранении", error);
+            toaster.push(<Message type="error">Ошибка при сохранении</Message>);
+        }
+    };
 
     return (
         <div className="voidpage-st">
-            <h2>У вас еще пока нет комнаты =(</h2>
             {!openModal ? (
-                <button onClick={handleOpenModal}>Создать</button>
+                <>
+                    <h2 className="voidpage-font">У вас еще пока нет комнаты =(</h2>
+                    <Button onClick={handleOpenModal} className="voidpage-font" color="orange" appearance="primary">Создать</Button>
+                </>
             ) : (
                 <ModalWindow
                     show={openModal}
                     onClose={() => setOpenModal(false)}
+                    onSave={handleSave}
                     interestId={interestId}
-                    onInterestsAdded={() => setShowRoom(true)}
                 />
             )}
         </div>
     );
 }
+
+VoidPage.propTypes = {
+    onRoomCreated: PropTypes.func.isRequired,
+};
